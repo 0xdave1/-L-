@@ -1,0 +1,6 @@
+{
+  "name": "ÈLÒ",
+  "description": "ÈLÒ is an intelligent, offline grocery shopping list designed for Nigerian and African shoppers. Features automatic market item categorization, multi-list budget and expense tracking (₦ Naira), tap-to-check shopping, and quick reorder.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

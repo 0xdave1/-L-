@@ -1,0 +1,14 @@
+<resources>
+    <string name="app_name">ÈLÒ</string>
+    <string name="app_tagline">Shop smarter. Spend better. Forget nothing.</string>
+    <string name="nav_home">Home</string>
+    <string name="nav_lists">My Lists</string>
+    <string name="nav_favorites">Favorites</string>
+    <string name="nav_history">History</string>
+    <string name="create_new_list">Create New List</string>
+    <string name="add_item_hint">Add grocery item (e.g. Rice, Garri, Tomatoes...)</string>
+    <string name="quick_suggestions">Frequently Bought</string>
+    <string name="clear_completed">Clear Finished</string>
+    <string name="empty_home_title">No Active Shopping List</string>
+    <string name="empty_home_subtitle">Start your market or supermarket run by creating a new shopping list.</string>
+</resources>
