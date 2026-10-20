@@ -3,7 +3,6 @@ package com.example.ui.components
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
-import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -22,6 +21,7 @@ import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.Tune
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.FilledIconButton
@@ -29,6 +29,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedIconButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Surface
@@ -62,6 +63,7 @@ fun AutocompleteQuickAddBar(
     onInputTextChanged: (String) -> Unit,
     onCategoryOverrideSelected: (GroceryCategory?) -> Unit,
     onAddItem: (String, GroceryCategory?) -> Unit,
+    onOpenDetailsDialog: (String) -> Unit,
     modifier: Modifier = Modifier
 ) {
     var showCategoryDropdown by remember { mutableStateOf(false) }
@@ -207,29 +209,52 @@ fun AutocompleteQuickAddBar(
                         .testTag("quick_add_input")
                 )
 
-                Spacer(modifier = Modifier.width(8.dp))
+                Spacer(modifier = Modifier.width(6.dp))
 
+                // Specify Quantity & Price upfront dialog trigger
+                OutlinedIconButton(
+                    onClick = {
+                        onOpenDetailsDialog(inputText)
+                        isSuggestionsExpanded = false
+                    },
+                    shape = CircleShape,
+                    modifier = Modifier
+                        .size(42.dp)
+                        .testTag("open_add_details_dialog_btn")
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Tune,
+                        contentDescription = "Specify quantity and price",
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(20.dp)
+                    )
+                }
+
+                Spacer(modifier = Modifier.width(4.dp))
+
+                // Instant Quick Add button
                 FilledIconButton(
                     onClick = {
                         if (inputText.isNotBlank()) {
                             onAddItem(inputText, selectedCategoryOverride)
                             isSuggestionsExpanded = false
+                        } else {
+                            onOpenDetailsDialog("")
                         }
                     },
-                    enabled = inputText.isNotBlank(),
                     shape = CircleShape,
                     colors = IconButtonDefaults.filledIconButtonColors(
                         containerColor = MaterialTheme.colorScheme.primary,
                         contentColor = MaterialTheme.colorScheme.onPrimary
                     ),
                     modifier = Modifier
-                        .size(46.dp)
+                        .size(44.dp)
                         .testTag("quick_add_button")
                 ) {
                     Icon(
                         imageVector = Icons.Default.Add,
                         contentDescription = "Add Item",
-                        modifier = Modifier.size(24.dp)
+                        modifier = Modifier.size(22.dp)
                     )
                 }
             }
@@ -272,12 +297,38 @@ fun AutocompleteQuickAddBar(
                                     color = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
                             }
-                            Icon(
-                                imageVector = Icons.Default.Add,
-                                contentDescription = "Add suggested",
-                                tint = MaterialTheme.colorScheme.primary,
-                                modifier = Modifier.size(18.dp)
-                            )
+
+                            // Button to customize details
+                            IconButton(
+                                onClick = {
+                                    onOpenDetailsDialog(entry.canonicalName)
+                                    isSuggestionsExpanded = false
+                                },
+                                modifier = Modifier.size(32.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Tune,
+                                    contentDescription = "Customize quantity and price",
+                                    tint = MaterialTheme.colorScheme.primary,
+                                    modifier = Modifier.size(16.dp)
+                                )
+                            }
+
+                            // Quick add icon
+                            IconButton(
+                                onClick = {
+                                    onAddItem(entry.canonicalName, entry.category)
+                                    isSuggestionsExpanded = false
+                                },
+                                modifier = Modifier.size(32.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Add,
+                                    contentDescription = "Add suggested",
+                                    tint = MaterialTheme.colorScheme.primary,
+                                    modifier = Modifier.size(18.dp)
+                                )
+                            }
                         }
                     }
                 }

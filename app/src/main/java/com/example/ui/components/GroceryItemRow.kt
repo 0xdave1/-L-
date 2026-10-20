@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -209,20 +210,97 @@ fun GroceryItemRow(
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
 
-                    // Price display
+                    // Price display (Clickable to quickly record actual price paid)
                     val confirmedPrice = item.actualConfirmedLineTotalMinorUnits
                     val estPrice = item.estimatedLineTotalMinorUnits
-                    if (confirmedPrice != null) {
+                    var showQuickPriceDialog by remember { mutableStateOf(false) }
+
+                    Surface(
+                        shape = RoundedCornerShape(6.dp),
+                        color = if (confirmedPrice != null) StatusSuccess.copy(alpha = 0.1f) else Color.Transparent,
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(6.dp))
+                            .clickable { showQuickPriceDialog = true }
+                            .testTag("price_tag_${item.id}")
+                    ) {
                         Text(
-                            text = "• ${currency.formatAmount(confirmedPrice)}",
-                            style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
-                            color = StatusSuccess
+                            text = when {
+                                confirmedPrice != null -> "• Spent: ${currency.formatAmount(confirmedPrice)}"
+                                estPrice > 0L -> "• Est: ${currency.formatAmount(estPrice)}"
+                                else -> "• + Price"
+                            },
+                            style = MaterialTheme.typography.labelSmall.copy(
+                                fontWeight = if (confirmedPrice != null) FontWeight.Bold else FontWeight.Normal
+                            ),
+                            color = if (confirmedPrice != null) StatusSuccess else MaterialTheme.colorScheme.outline,
+                            modifier = Modifier.padding(horizontal = 4.dp, vertical = 2.dp)
                         )
-                    } else if (estPrice > 0L) {
-                        Text(
-                            text = "• Est: ${currency.formatAmount(estPrice)}",
-                            style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.outline
+                    }
+
+                    if (showQuickPriceDialog) {
+                        var inputPrice by remember {
+                            mutableStateOf(
+                                if (confirmedPrice != null) {
+                                    "${confirmedPrice / currency.minorUnitsPerMajor}"
+                                } else if (estPrice > 0L) {
+                                    "${estPrice / currency.minorUnitsPerMajor}"
+                                } else ""
+                            )
+                        }
+
+                        androidx.compose.material3.AlertDialog(
+                            onDismissRequest = { showQuickPriceDialog = false },
+                            title = {
+                                Text(
+                                    text = "Record Actual Spent",
+                                    style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold)
+                                )
+                            },
+                            text = {
+                                Column {
+                                    Text(
+                                        text = "Enter actual amount spent for ${item.name} (${formatQty(item.quantity)} ${item.unit}):",
+                                        style = MaterialTheme.typography.bodySmall
+                                    )
+                                    Spacer(modifier = Modifier.height(10.dp))
+                                    androidx.compose.material3.OutlinedTextField(
+                                        value = inputPrice,
+                                        onValueChange = { inputPrice = it },
+                                        label = { Text("Amount (${currency.symbol})") },
+                                        placeholder = { Text("e.g. 2500") },
+                                        singleLine = true,
+                                        keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(
+                                            keyboardType = androidx.compose.ui.text.input.KeyboardType.Number
+                                        ),
+                                        shape = RoundedCornerShape(12.dp),
+                                        modifier = Modifier.fillMaxWidth().testTag("quick_price_input")
+                                    )
+                                }
+                            },
+                            confirmButton = {
+                                androidx.compose.material3.Button(
+                                    onClick = {
+                                        val minor = currency.parseToMinorUnits(inputPrice)
+                                        if (minor != null) {
+                                            onItemClick(
+                                                item.copy(
+                                                    actualLineTotalMinorUnits = minor,
+                                                    useActualLineTotal = true,
+                                                    isPurchased = true
+                                                )
+                                            )
+                                        }
+                                        showQuickPriceDialog = false
+                                    }
+                                ) {
+                                    Text("Save Spending")
+                                }
+                            },
+                            dismissButton = {
+                                androidx.compose.material3.TextButton(onClick = { showQuickPriceDialog = false }) {
+                                    Text("Cancel")
+                                }
+                            }
                         )
                     }
                 }

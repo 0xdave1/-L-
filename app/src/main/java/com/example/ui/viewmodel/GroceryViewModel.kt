@@ -77,6 +77,8 @@ class GroceryViewModel(application: Application) : AndroidViewModel(application)
     val showEditBudgetDialog = MutableStateFlow(false)
     val showClearConfirmDialog = MutableStateFlow(false)
     val showSettingsDialog = MutableStateFlow(false)
+    val showAddItemDialog = MutableStateFlow(false)
+    val addItemPrefillName = MutableStateFlow("")
 
     // Currency selection
     val currentCurrency = MutableStateFlow(Currencies.NGN)
@@ -215,12 +217,36 @@ class GroceryViewModel(application: Application) : AndroidViewModel(application)
         }
     }
 
+    fun openAddItemDialog(prefill: String = "") {
+        addItemPrefillName.value = prefill
+        showAddItemDialog.value = true
+    }
+
+    fun closeAddItemDialog() {
+        showAddItemDialog.value = false
+        addItemPrefillName.value = ""
+    }
+
+    fun recordActualPrice(item: GroceryItem, actualLineTotalMinorUnits: Long) {
+        viewModelScope.launch {
+            repository.updateItem(
+                item.copy(
+                    actualLineTotalMinorUnits = actualLineTotalMinorUnits,
+                    useActualLineTotal = true,
+                    isPurchased = true
+                )
+            )
+            _eventFlow.emit(GroceryUiEvent.ShowSnackbar("Recorded spending for ${item.name}"))
+        }
+    }
+
     fun attemptAddItem(
         name: String,
         quantity: Double = 1.0,
         unit: String? = null,
         estimatedPriceMinorUnits: Long? = null,
-        category: GroceryCategory? = null
+        category: GroceryCategory? = null,
+        notes: String = ""
     ) {
         val listId = _selectedListId.value ?: return
         val cleanName = name.trim()
@@ -246,7 +272,8 @@ class GroceryViewModel(application: Application) : AndroidViewModel(application)
                     quantity = quantity,
                     unit = unit,
                     estimatedPriceMinorUnits = estimatedPriceMinorUnits,
-                    category = category
+                    category = category,
+                    notes = notes
                 )
             }
         }
@@ -293,7 +320,8 @@ class GroceryViewModel(application: Application) : AndroidViewModel(application)
         quantity: Double,
         unit: String?,
         estimatedPriceMinorUnits: Long?,
-        category: GroceryCategory?
+        category: GroceryCategory?,
+        notes: String = ""
     ) {
         repository.addItem(
             listId = listId,
@@ -301,7 +329,8 @@ class GroceryViewModel(application: Application) : AndroidViewModel(application)
             quantity = quantity,
             unit = unit,
             estimatedUnitPriceMinorUnits = estimatedPriceMinorUnits,
-            categoryOverride = category ?: selectedCategoryOverride.value
+            categoryOverride = category ?: selectedCategoryOverride.value,
+            notes = notes
         )
         inputText.value = ""
         selectedCategoryOverride.value = null

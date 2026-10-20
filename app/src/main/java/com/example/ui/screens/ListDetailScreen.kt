@@ -22,6 +22,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.Delete
@@ -66,6 +67,7 @@ import com.example.data.entity.GroceryItem
 import com.example.data.entity.ShoppingList
 import com.example.data.model.Currencies
 import com.example.data.model.GroceryCategory
+import com.example.ui.components.AddItemDialog
 import com.example.ui.components.AutocompleteQuickAddBar
 import com.example.ui.components.BudgetSummaryCard
 import com.example.ui.components.CategorySectionHeader
@@ -74,6 +76,7 @@ import com.example.ui.components.DuplicateItemDialog
 import com.example.ui.components.EditBudgetDialog
 import com.example.ui.components.EditItemDialog
 import com.example.ui.components.GroceryItemRow
+import com.example.ui.components.QuickSuggestionsRow
 import com.example.ui.theme.StatusError
 import com.example.ui.theme.StatusSuccess
 import com.example.ui.viewmodel.GroceryViewModel
@@ -92,6 +95,8 @@ fun ListDetailScreen(
     val inputText by viewModel.inputText.collectAsStateWithLifecycle()
     val detectedCategory by viewModel.detectedCategory.collectAsStateWithLifecycle()
     val selectedCategoryOverride by viewModel.selectedCategoryOverride.collectAsStateWithLifecycle()
+    val frequentlyBought by viewModel.frequentlyBought.collectAsStateWithLifecycle()
+    val favorites by viewModel.favorites.collectAsStateWithLifecycle()
 
     val searchQuery by viewModel.searchQuery.collectAsStateWithLifecycle()
     val itemFilter by viewModel.itemFilter.collectAsStateWithLifecycle()
@@ -101,6 +106,8 @@ fun ListDetailScreen(
     val editingItem by viewModel.editingItem.collectAsStateWithLifecycle()
     val showEditBudgetDialog by viewModel.showEditBudgetDialog.collectAsStateWithLifecycle()
     val showClearConfirmDialog by viewModel.showClearConfirmDialog.collectAsStateWithLifecycle()
+    val showAddItemDialog by viewModel.showAddItemDialog.collectAsStateWithLifecycle()
+    val addItemPrefillName by viewModel.addItemPrefillName.collectAsStateWithLifecycle()
 
     var showOptionsMenu by remember { mutableStateOf(false) }
     var isSearchVisible by remember { mutableStateOf(false) }
@@ -174,6 +181,17 @@ fun ListDetailScreen(
                     }
                 },
                 actions = {
+                    IconButton(
+                        onClick = { viewModel.openAddItemDialog("") },
+                        modifier = Modifier.testTag("top_add_item_button")
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Add,
+                            contentDescription = "Add Item with Details",
+                            tint = MaterialTheme.colorScheme.primary
+                        )
+                    }
+
                     IconButton(onClick = { isSearchVisible = !isSearchVisible }) {
                         Icon(
                             imageVector = Icons.Default.Search,
@@ -194,6 +212,13 @@ fun ListDetailScreen(
                             expanded = showOptionsMenu,
                             onDismissRequest = { showOptionsMenu = false }
                         ) {
+                            DropdownMenuItem(
+                                text = { Text("Add Item (Specify Qty & Price)") },
+                                onClick = {
+                                    viewModel.openAddItemDialog("")
+                                    showOptionsMenu = false
+                                }
+                            )
                             DropdownMenuItem(
                                 text = { Text("Edit Budget") },
                                 onClick = {
@@ -229,7 +254,7 @@ fun ListDetailScreen(
                                 DropdownMenuItem(
                                     text = { Text("Clear Finished Items", color = StatusError) },
                                     onClick = {
-                                        viewModel.showClearConfirmDialog.value = true
+                                        viewModel.clearPurchasedItems()
                                         showOptionsMenu = false
                                     }
                                 )
@@ -241,7 +266,7 @@ fun ListDetailScreen(
             )
         },
         bottomBar = {
-            // Bottom Action Area with Clear Finished and Finish Shopping
+            // Bottom Action Area with One-Tap Clear Finished and Finish Shopping
             if (purchasedCount > 0 || allItems.isNotEmpty()) {
                 Surface(
                     color = MaterialTheme.colorScheme.surface,
@@ -256,9 +281,10 @@ fun ListDetailScreen(
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(10.dp)
                     ) {
+                        // One-Tap Clear Finished with instant Undo snackbar
                         if (purchasedCount > 0) {
                             Button(
-                                onClick = { viewModel.showClearConfirmDialog.value = true },
+                                onClick = { viewModel.clearPurchasedItems() },
                                 shape = RoundedCornerShape(14.dp),
                                 colors = ButtonDefaults.buttonColors(
                                     containerColor = MaterialTheme.colorScheme.errorContainer,
@@ -313,7 +339,7 @@ fun ListDetailScreen(
                 .fillMaxSize()
                 .padding(innerPadding)
         ) {
-            // Quick Add Entry Bar with Autocomplete & Live Category Badge
+            // Quick Add Entry Bar with Autocomplete, Live Category Badge & Specify Details button
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -328,9 +354,20 @@ fun ListDetailScreen(
                     onCategoryOverrideSelected = viewModel::onCategoryOverrideSelected,
                     onAddItem = { itemName, catOverride ->
                         viewModel.attemptAddItem(name = itemName, category = catOverride)
+                    },
+                    onOpenDetailsDialog = { prefill ->
+                        viewModel.openAddItemDialog(prefill)
                     }
                 )
             }
+
+            // Quick Suggestions Row (Favorites & Frequently Bought items)
+            QuickSuggestionsRow(
+                frequentlyBought = frequentlyBought,
+                favorites = favorites,
+                onAddFrequentItem = { usage -> viewModel.addFrequentItemToList(list.id, usage) },
+                onAddFavoriteItem = { fav -> viewModel.addFavoriteToList(list.id, fav) }
+            )
 
             // Search Bar if toggled
             AnimatedVisibility(visible = isSearchVisible) {
@@ -436,7 +473,7 @@ fun ListDetailScreen(
                                 )
                                 Spacer(modifier = Modifier.height(4.dp))
                                 Text(
-                                    text = if (allItems.isEmpty()) "Type any item above (like Rice, Yam, Tomatoes) to add it." else "Try searching for another keyword.",
+                                    text = if (allItems.isEmpty()) "Type any item above, tap quick suggestions, or use + to specify quantities and prices." else "Try searching for another keyword.",
                                     style = MaterialTheme.typography.bodySmall,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
@@ -480,6 +517,26 @@ fun ListDetailScreen(
         }
     }
 
+    // Add Item Dialog (Specify Quantity & Price)
+    if (showAddItemDialog) {
+        AddItemDialog(
+            initialName = addItemPrefillName,
+            currencyCode = list.currencyCode,
+            onConfirm = { name, quantity, unit, estPrice, category, notes ->
+                viewModel.attemptAddItem(
+                    name = name,
+                    quantity = quantity,
+                    unit = unit,
+                    estimatedPriceMinorUnits = estPrice,
+                    category = category,
+                    notes = notes
+                )
+                viewModel.closeAddItemDialog()
+            },
+            onDismiss = { viewModel.closeAddItemDialog() }
+        )
+    }
+
     // Duplicate item resolution dialog
     duplicatePrompt?.let { prompt ->
         DuplicateItemDialog(
@@ -515,7 +572,7 @@ fun ListDetailScreen(
         )
     }
 
-    // Clear Finished items confirmation dialog
+    // Clear Finished items confirmation dialog (if opened from menu)
     if (showClearConfirmDialog) {
         ConfirmClearDialog(
             itemCount = purchasedCount,
